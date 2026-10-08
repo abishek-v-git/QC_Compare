@@ -1,0 +1,74 @@
+{% extends 'checker/base.html' %}
+{% block title %}Results{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Mercury check</div>
+    <h1>Results</h1>
+    <p class="meta"><span class="mono">{{ dev_filename }}</span> vs <span class="mono">{{ mercury_filename }}</span></p>
+  </div>
+  <div class="head-actions">
+    <a class="button secondary" href="{% url 'checker:upload' %}">New check</a>
+    <a class="button" download="mercury_check.xlsx"
+       href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{{ xlsx_b64 }}">
+      <svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+      Download Excel
+    </a>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat accent"><div class="stat-label">Items</div><div class="stat-value">{{ total }}</div></div>
+  <div class="stat good"><div class="stat-label">Matched</div><div class="stat-value">{{ matched_count }}</div></div>
+  <div class="stat {% if unmatched_count %}bad{% else %}good{% endif %}"><div class="stat-label">Not in Mercury</div><div class="stat-value">{{ unmatched_count }}</div></div>
+  <div class="stat {% if match_pct == 100 %}good{% elif match_pct >= 80 %}warn{% else %}bad{% endif %}">
+    <div class="stat-label">Match rate</div><div class="stat-value">{{ match_pct }}<small>%</small></div>
+    <div class="meter"><span style="width: {{ match_pct }}%"></span></div>
+  </div>
+</div>
+
+<div class="card flush">
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="Search item number…" aria-label="Search">
+    <select id="f" aria-label="Filter">
+      <option value="">All rows</option>
+      <option value="yes">Matched only</option>
+      <option value="no">Not matched only</option>
+    </select>
+    <span class="count" id="count">{{ total }} rows</span>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>#</th><th>Item Number</th><th>Revision</th><th>Combined</th><th>Matched with Mercury</th></tr></thead>
+      <tbody id="rows">
+        {% for r in rows %}
+        <tr class="{% if r.matched %}row-yes{% else %}row-no{% endif %}" data-m="{% if r.matched %}yes{% else %}no{% endif %}" data-s="{{ r.item_number|lower }} {{ r.combined|lower }}">
+          <td class="faint num">{{ forloop.counter }}</td>
+          <td class="mono">{{ r.item_number }}</td>
+          <td class="mono">{{ r.revision|default:"—" }}</td>
+          <td class="mono">{{ r.combined }}</td>
+          <td>{% if r.matched %}<span class="pill good">Yes</span>{% else %}<span class="pill bad">No</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    var q = document.getElementById('q'), f = document.getElementById('f'), count = document.getElementById('count');
+    var rows = document.querySelectorAll('#rows tr');
+    function apply() {
+      var term = q.value.trim().toLowerCase(), m = f.value, shown = 0;
+      rows.forEach(function (tr) {
+        var ok = (!term || tr.dataset.s.indexOf(term) !== -1) && (!m || tr.dataset.m === m);
+        tr.hidden = !ok; if (ok) shown++;
+      });
+      count.textContent = shown + ' of ' + rows.length + ' rows';
+    }
+    q.addEventListener('input', apply); f.addEventListener('change', apply);
+  })();
+</script>
+{% endblock %}

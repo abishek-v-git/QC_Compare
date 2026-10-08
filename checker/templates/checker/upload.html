@@ -1,0 +1,46 @@
+{% extends 'checker/base.html' %}
+{% block title %}Mercury check{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Mercury check</div>
+    <h1>Match a dev export against Mercury</h1>
+    <p class="lead">Each item number is converted to its Mercury form — a three-digit last segment drops its first digit
+      (<span class="mono">ASY-71940-131</span> → <span class="mono">ASY-71940-31</span>) — then the revision is appended
+      (<span class="mono">ASY-71940-31-B0</span>) and looked up in the Mercury export.</p>
+  </div>
+</div>
+
+{% if error %}<div class="errors">{{ error }}</div>{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="card">
+  {% csrf_token %}
+  <div class="file-pair">
+    <div class="field">
+      <span class="label">Dev export</span>
+      <label class="dropzone">
+        <span class="dz-icon"><svg class="i" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 13h6M9 17h6"/></svg></span>
+        <span><div class="dz-title"><span>Choose file</span> or drag it here</div><div class="dz-sub">.xlsx with "Item Number" and "Revision" columns</div></span>
+        <input type="file" name="dev_export" accept=".xlsx,.xlsm" required>
+      </label>
+      {% if form.dev_export.errors %}<div class="errors">{{ form.dev_export.errors }}</div>{% endif %}
+    </div>
+    <div class="field">
+      <span class="label">Mercury export</span>
+      <label class="dropzone">
+        <span class="dz-icon"><svg class="i" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 13h6M9 17h6"/></svg></span>
+        <span><div class="dz-title"><span>Choose file</span> or drag it here</div><div class="dz-sub">.xlsx listing part numbers like ASY-02505-21-A0</div></span>
+        <input type="file" name="mercury_export" accept=".xlsx,.xlsm" required>
+      </label>
+      {% if form.mercury_export.errors %}<div class="errors">{{ form.mercury_export.errors }}</div>{% endif %}
+    </div>
+  </div>
+  <div class="form-foot">
+    <span class="hint">Matching ignores case and surrounding spaces.</span>
+    <button type="submit" class="lg">
+      <svg class="i" viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>
+      Run check
+    </button>
+  </div>
+</form>
+{% endblock %}

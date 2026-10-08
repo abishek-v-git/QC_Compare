@@ -1,0 +1,10 @@
+env/
+__pycache__/
+*.pyc
+db.sqlite3
+.vscode/
+.idea/
+
+# Sample exports: keep company data out of the repo
+*.xlsx
+*.xlsm
