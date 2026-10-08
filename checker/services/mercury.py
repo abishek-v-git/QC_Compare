@@ -8,6 +8,12 @@ from openpyxl.utils import get_column_letter
 
 HEADER_SCAN_ROWS = 20
 THREE_DIGIT_TAIL = re.compile(r'^(.+-)\d(\d{2})$')
+CHECKED_PREFIXES = ('ASY-', 'PCA-')  # IC and other part types are skipped
+NO_NEED_PROJECT_WORD = 'outback'     # projects containing this (e.g. Outback-MB48) are never created in Mercury
+
+AVAILABLE = 'Available in mercury'
+NOT_AVAILABLE = 'Not Available in mercury'
+NO_NEED = 'No Need to Create'
 
 
 class ExportError(ValueError):
@@ -33,29 +39,29 @@ def combine(item_number, revision):
 
 
 def read_dev_export(file):
-    """Return [(item_number, revision)] from the dev export, locating the header row by name."""
+    """Return [(item_number, revision, project_name)] from the dev export, locating the header row by name.
+    The project column ("Project Name F" in Agile exports) is optional."""
     try:
         ws = load_workbook(file, read_only=True, data_only=True).worksheets[0]
     except Exception as exc:
         raise ExportError(f'Could not read the dev export: {exc}') from exc
 
     rows = ws.iter_rows(values_only=True)
-    item_col = rev_col = None
+    item_col = rev_col = project_col = None
     for _, row in zip(range(HEADER_SCAN_ROWS), rows):
         headers = [_clean(c).lower() for c in row]
         if 'item number' in headers and 'revision' in headers:
             item_col, rev_col = headers.index('item number'), headers.index('revision')
+            project_col = next((i for i, h in enumerate(headers) if h.startswith('project name')), None)
             break
     if item_col is None:
         raise ExportError('Dev export has no header row with "Item Number" and "Revision" columns.')
 
-    items = []
-    for row in rows:
-        item = _clean(row[item_col]) if item_col < len(row) else ''
-        if item:
-            rev = _clean(row[rev_col]) if rev_col < len(row) else ''
-            items.append((item, rev))
-    return items
+    def cell(row, col):
+        return _clean(row[col]) if col is not None and col < len(row) else ''
+
+    return [(cell(row, item_col), cell(row, rev_col), cell(row, project_col))
+            for row in rows if cell(row, item_col)]
 
 
 def read_mercury_export(file):
@@ -67,12 +73,24 @@ def read_mercury_export(file):
     return {_clean(c).upper() for row in ws.iter_rows(values_only=True) for c in row if _clean(c)}
 
 
+def _is_no_need(project):
+    return NO_NEED_PROJECT_WORD in project.lower()
+
+
 def build_rows(dev_items, mercury_parts):
+    """Only ASY/PCA parts are checked; Outback parts are marked No Need to Create whether or not they match."""
     rows = []
-    for item, rev in dev_items:
+    for item, rev, project in dev_items:
+        if not item.upper().startswith(CHECKED_PREFIXES):
+            continue
         combined = combine(item, rev)
-        rows.append({'item_number': item, 'revision': rev, 'combined': combined,
-                     'matched': combined.upper() in mercury_parts})
+        if _is_no_need(project):
+            status = NO_NEED
+        elif combined.upper() in mercury_parts:
+            status = AVAILABLE
+        else:
+            status = NOT_AVAILABLE
+        rows.append({'item_number': item, 'revision': rev, 'project': project, 'combined': combined, 'status': status})
     return rows
 
 
@@ -80,20 +98,22 @@ def rows_to_xlsx(rows):
     wb = Workbook()
     ws = wb.active
     ws.title = 'Mercury check'
-    ws.append(['Item Number', 'Revision', 'Combined', 'Matched with Mercury'])
+    ws.append(['Item Number', 'Revision', 'Combined', 'Project Name', 'Status'])
     for r in rows:
-        ws.append([r['item_number'], r['revision'], r['combined'], 'Yes' if r['matched'] else 'No'])
+        ws.append([r['item_number'], r['revision'], r['combined'], r['project'], r['status']])
 
     header_fill = PatternFill('solid', fgColor='5850EC')
     for cell in ws[1]:
         cell.font = Font(bold=True, color='FFFFFF')
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal='center')
-    yes_fill, no_fill = PatternFill('solid', fgColor='E9F7EE'), PatternFill('solid', fgColor='FDEDED')
-    for row in ws.iter_rows(min_row=2, min_col=4, max_col=4):
-        row[0].fill = yes_fill if row[0].value == 'Yes' else no_fill
+    status_fills = {AVAILABLE: PatternFill('solid', fgColor='E9F7EE'),
+                    NOT_AVAILABLE: PatternFill('solid', fgColor='FDEDED'),
+                    NO_NEED: PatternFill('solid', fgColor='F0F2F5')}
+    for row in ws.iter_rows(min_row=2, min_col=5, max_col=5):
+        row[0].fill = status_fills[row[0].value]
         row[0].alignment = Alignment(horizontal='center')
-    for i, width in enumerate([22, 12, 26, 22], start=1):
+    for i, width in enumerate([22, 12, 26, 24, 28], start=1):
         ws.column_dimensions[get_column_letter(i)].width = width
     ws.freeze_panes = 'A2'
     ws.auto_filter.ref = ws.dimensions

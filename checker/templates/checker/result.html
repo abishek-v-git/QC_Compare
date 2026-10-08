@@ -5,7 +5,7 @@
   <div>
     <div class="eyebrow">Mercury check</div>
     <h1>Results</h1>
-    <p class="meta"><span class="mono">{{ dev_filename }}</span> vs <span class="mono">{{ mercury_filename }}</span></p>
+    <p class="meta"><span class="mono">{{ dev_filename }}</span> vs <span class="mono">{{ mercury_filename }}</span>{% if skipped %} · {{ skipped }} non-ASY/PCA part{{ skipped|pluralize }} skipped{% endif %}</p>
   </div>
   <div class="head-actions">
     <a class="button secondary" href="{% url 'checker:upload' %}">New check</a>
@@ -18,9 +18,10 @@
 </div>
 
 <div class="stats">
-  <div class="stat accent"><div class="stat-label">Items</div><div class="stat-value">{{ total }}</div></div>
-  <div class="stat good"><div class="stat-label">Matched</div><div class="stat-value">{{ matched_count }}</div></div>
-  <div class="stat {% if unmatched_count %}bad{% else %}good{% endif %}"><div class="stat-label">Not in Mercury</div><div class="stat-value">{{ unmatched_count }}</div></div>
+  <div class="stat accent"><div class="stat-label">ASY / PCA items</div><div class="stat-value">{{ total }}</div></div>
+  <div class="stat good"><div class="stat-label">Available in mercury</div><div class="stat-value">{{ available_count }}</div></div>
+  <div class="stat {% if not_available_count %}bad{% else %}good{% endif %}"><div class="stat-label">Not available in mercury</div><div class="stat-value">{{ not_available_count }}</div></div>
+  <div class="stat"><div class="stat-label">No need to create</div><div class="stat-value">{{ no_need_count }}</div></div>
   <div class="stat {% if match_pct == 100 %}good{% elif match_pct >= 80 %}warn{% else %}bad{% endif %}">
     <div class="stat-label">Match rate</div><div class="stat-value">{{ match_pct }}<small>%</small></div>
     <div class="meter"><span style="width: {{ match_pct }}%"></span></div>
@@ -32,22 +33,25 @@
     <input type="search" id="q" placeholder="Search item number…" aria-label="Search">
     <select id="f" aria-label="Filter">
       <option value="">All rows</option>
-      <option value="yes">Matched only</option>
-      <option value="no">Not matched only</option>
+      <option value="yes">Available only</option>
+      <option value="no">Not available only</option>
+      <option value="skip">No need to create only</option>
     </select>
     <span class="count" id="count">{{ total }} rows</span>
   </div>
   <div class="table-scroll">
     <table>
-      <thead><tr><th>#</th><th>Item Number</th><th>Revision</th><th>Combined</th><th>Matched with Mercury</th></tr></thead>
+      <thead><tr><th>#</th><th>Item Number</th><th>Revision</th><th>Project</th><th>Combined</th><th>Status</th></tr></thead>
       <tbody id="rows">
         {% for r in rows %}
-        <tr class="{% if r.matched %}row-yes{% else %}row-no{% endif %}" data-m="{% if r.matched %}yes{% else %}no{% endif %}" data-s="{{ r.item_number|lower }} {{ r.combined|lower }}">
+        {% if r.status == AVAILABLE %}{% firstof 'yes' as key %}{% elif r.status == NOT_AVAILABLE %}{% firstof 'no' as key %}{% else %}{% firstof 'skip' as key %}{% endif %}
+        <tr class="row-{{ key }}" data-m="{{ key }}" data-s="{{ r.item_number|lower }} {{ r.combined|lower }}">
           <td class="faint num">{{ forloop.counter }}</td>
           <td class="mono">{{ r.item_number }}</td>
           <td class="mono">{{ r.revision|default:"—" }}</td>
+          <td>{{ r.project|default:"—" }}</td>
           <td class="mono">{{ r.combined }}</td>
-          <td>{% if r.matched %}<span class="pill good">Yes</span>{% else %}<span class="pill bad">No</span>{% endif %}</td>
+          <td><span class="pill {% if key == 'yes' %}good{% elif key == 'no' %}bad{% endif %}">{{ r.status }}</span></td>
         </tr>
         {% endfor %}
       </tbody>
