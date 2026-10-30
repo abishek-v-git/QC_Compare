@@ -10,6 +10,8 @@ HEADER_SCAN_ROWS = 20
 THREE_DIGIT_TAIL = re.compile(r'^(.+-)\d(\d{2})$')
 CHECKED_PREFIXES = ('ASY-', 'PCA-')  # IC and other part types are skipped
 NO_NEED_PROJECT_WORD = 'outback'     # projects containing this (e.g. Outback-MB48) are never created in Mercury
+CHANGE_NUMBER = re.compile(r'(?<![A-Z])(DEV|ECO)[\s_-]*(\d{5})(?!\d)', re.IGNORECASE)
+OUTPUT_SUFFIX = 'Mercury Entry Updated'
 
 AVAILABLE = 'Available in mercury'
 NOT_AVAILABLE = 'Not Available in mercury'
@@ -31,6 +33,16 @@ def mercury_base(item_number):
     if m and item_number.count('-') >= 2:
         return m.group(1) + m.group(2)
     return item_number
+
+
+def change_number(filename):
+    """'DEV-12345.xlsx' / 'eco_12345 export.xlsx' -> 'DEV-12345' / 'ECO-12345'; None if the name has neither."""
+    m = CHANGE_NUMBER.search(filename)
+    return f'{m.group(1).upper()}-{m.group(2)}' if m else None
+
+
+def output_filename(change):
+    return f'{change} {OUTPUT_SUFFIX}.xlsx' if change else f'{OUTPUT_SUFFIX}.xlsx'
 
 
 def combine(item_number, revision):
@@ -94,29 +106,36 @@ def build_rows(dev_items, mercury_parts):
     return rows
 
 
-def rows_to_xlsx(rows):
+def rows_to_xlsx(rows, change=None):
+    """The change number (DEV-/ECO-) goes in a title line above the table when known."""
     wb = Workbook()
     ws = wb.active
     ws.title = 'Mercury check'
+    header_row = 1
+    if change:
+        ws.append([change])
+        ws['A1'].font = Font(bold=True, size=14)
+        ws.append([])
+        header_row = 3
     ws.append(['Item Number', 'Revision', 'Combined', 'Project Name', 'Status'])
     for r in rows:
         ws.append([r['item_number'], r['revision'], r['combined'], r['project'], r['status']])
 
     header_fill = PatternFill('solid', fgColor='5850EC')
-    for cell in ws[1]:
+    for cell in ws[header_row]:
         cell.font = Font(bold=True, color='FFFFFF')
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal='center')
     status_fills = {AVAILABLE: PatternFill('solid', fgColor='E9F7EE'),
                     NOT_AVAILABLE: PatternFill('solid', fgColor='FDEDED'),
                     NO_NEED: PatternFill('solid', fgColor='F0F2F5')}
-    for row in ws.iter_rows(min_row=2, min_col=5, max_col=5):
+    for row in ws.iter_rows(min_row=header_row + 1, min_col=5, max_col=5):
         row[0].fill = status_fills[row[0].value]
         row[0].alignment = Alignment(horizontal='center')
     for i, width in enumerate([22, 12, 26, 24, 28], start=1):
         ws.column_dimensions[get_column_letter(i)].width = width
-    ws.freeze_panes = 'A2'
-    ws.auto_filter.ref = ws.dimensions
+    ws.freeze_panes = f'A{header_row + 1}'
+    ws.auto_filter.ref = f'A{header_row}:E{ws.max_row}'
 
     buf = io.BytesIO()
     wb.save(buf)

@@ -4,7 +4,7 @@
 <div class="page-head">
   <div>
     <div class="eyebrow">Mercury check</div>
-    <h1>Match a dev export against Mercury</h1>
+    <h1>Match a DEV / ECO export against Mercury</h1>
     <p class="lead">Each item number is converted to its Mercury form — a three-digit last segment drops its first digit
       (<span class="mono">ASY-71940-131</span> → <span class="mono">ASY-71940-31</span>) — then the revision is appended
       (<span class="mono">ASY-71940-31-B0</span>) and looked up in the Mercury export.</p>
@@ -17,10 +17,10 @@
   {% csrf_token %}
   <div class="file-pair">
     <div class="field">
-      <span class="label">Dev export</span>
+      <span class="label">DEV / ECO export</span>
       <label class="dropzone">
         <span class="dz-icon"><svg class="i" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 13h6M9 17h6"/></svg></span>
-        <span><div class="dz-title"><span>Choose file</span> or drag it here</div><div class="dz-sub">.xlsx with "Item Number" and "Revision" columns</div></span>
+        <span><div class="dz-title"><span>Choose file</span> or drag it here</div><div class="dz-sub">e.g. DEV-12345.xlsx or ECO-12345.xlsx, with "Item Number" and "Revision" columns</div></span>
         <input type="file" name="dev_export" accept=".xlsx,.xlsm" required>
       </label>
       {% if form.dev_export.errors %}<div class="errors">{{ form.dev_export.errors }}</div>{% endif %}

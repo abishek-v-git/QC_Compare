@@ -4,12 +4,12 @@
 <div class="page-head">
   <div>
     <div class="eyebrow">Mercury check</div>
-    <h1>Results</h1>
+    <h1>{% if change %}{{ change }} · {% endif %}Results</h1>
     <p class="meta"><span class="mono">{{ dev_filename }}</span> vs <span class="mono">{{ mercury_filename }}</span>{% if skipped %} · {{ skipped }} non-ASY/PCA part{{ skipped|pluralize }} skipped{% endif %}</p>
   </div>
   <div class="head-actions">
     <a class="button secondary" href="{% url 'checker:upload' %}">New check</a>
-    <a class="button" download="mercury_check.xlsx"
+    <a class="button" download="{{ output_filename }}"
        href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{{ xlsx_b64 }}">
       <svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
       Download Excel

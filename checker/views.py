@@ -3,8 +3,8 @@ import base64
 from django.shortcuts import render
 
 from .forms import UploadForm
-from .services.mercury import (AVAILABLE, NO_NEED, NOT_AVAILABLE, ExportError, build_rows, read_dev_export,
-                               read_mercury_export, rows_to_xlsx)
+from .services.mercury import (AVAILABLE, NO_NEED, NOT_AVAILABLE, ExportError, build_rows, change_number,
+                               output_filename, read_dev_export, read_mercury_export, rows_to_xlsx)
 
 
 def upload(request):
@@ -30,8 +30,11 @@ def _result(request, dev_filename, mercury_filename, rows, skipped):
     counts = {s: sum(1 for r in rows if r['status'] == s) for s in (AVAILABLE, NOT_AVAILABLE, NO_NEED)}
     to_check = counts[AVAILABLE] + counts[NOT_AVAILABLE]  # Outback parts don't count towards the rate
     # The download is embedded in the page as a data URI, since there is no stored run to fetch it from later.
-    xlsx = rows_to_xlsx(rows)
+    change = change_number(dev_filename)
+    xlsx = rows_to_xlsx(rows, change)
     return render(request, 'checker/result.html', {
+        'change': change,
+        'output_filename': output_filename(change),
         'dev_filename': dev_filename,
         'mercury_filename': mercury_filename,
         'rows': rows,
