@@ -1,6 +1,8 @@
 """Build Mercury-style part numbers from a dev export and check which exist in a Mercury export."""
 import io
 import re
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -42,7 +44,9 @@ def change_number(filename):
 
 
 def output_filename(change):
-    return f'{change} {OUTPUT_SUFFIX}.xlsx' if change else f'{OUTPUT_SUFFIX}.xlsx'
+    prefix = f'{change} {OUTPUT_SUFFIX}' if change else OUTPUT_SUFFIX
+    timestamp = datetime.now(ZoneInfo('Asia/Kolkata')).strftime('%Y-%m-%d_%H-%M-%S')
+    return f'{prefix} {timestamp}.xlsx'
 
 
 def combine(item_number, revision):
