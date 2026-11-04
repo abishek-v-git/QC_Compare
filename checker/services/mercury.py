@@ -51,20 +51,21 @@ def combine(item_number, revision):
 
 
 def read_dev_export(file):
-    """Return [(item_number, revision, project_name)] from the dev export, locating the header row by name.
-    The project column ("Project Name F" in Agile exports) is optional."""
+    """Return [(item_number, revision, project_name, description)] from the dev export.
+    Locate the header row by name; project and description columns are optional."""
     try:
         ws = load_workbook(file, read_only=True, data_only=True).worksheets[0]
     except Exception as exc:
         raise ExportError(f'Could not read the dev export: {exc}') from exc
 
     rows = ws.iter_rows(values_only=True)
-    item_col = rev_col = project_col = None
+    item_col = rev_col = project_col = description_col = None
     for _, row in zip(range(HEADER_SCAN_ROWS), rows):
         headers = [_clean(c).lower() for c in row]
         if 'item number' in headers and 'revision' in headers:
             item_col, rev_col = headers.index('item number'), headers.index('revision')
             project_col = next((i for i, h in enumerate(headers) if h.startswith('project name')), None)
+            description_col = next((i for i, h in enumerate(headers) if h.startswith('description')), None)
             break
     if item_col is None:
         raise ExportError('Dev export has no header row with "Item Number" and "Revision" columns.')
@@ -72,7 +73,7 @@ def read_dev_export(file):
     def cell(row, col):
         return _clean(row[col]) if col is not None and col < len(row) else ''
 
-    return [(cell(row, item_col), cell(row, rev_col), cell(row, project_col))
+    return [(cell(row, item_col), cell(row, rev_col), cell(row, project_col), cell(row, description_col))
             for row in rows if cell(row, item_col)]
 
 
@@ -92,17 +93,20 @@ def _is_no_need(project):
 def build_rows(dev_items, mercury_parts):
     """Only ASY/PCA parts are checked; Outback parts are marked No Need to Create whether or not they match."""
     rows = []
-    for item, rev, project in dev_items:
+    for dev_item in dev_items:
+        item, rev, project = dev_item[:3]
+        description = dev_item[3] if len(dev_item) > 3 else ''
         if not item.upper().startswith(CHECKED_PREFIXES):
             continue
         combined = combine(item, rev)
-        if _is_no_need(project):
+        if _is_no_need(project) or _is_no_need(description):
             status = NO_NEED
         elif combined.upper() in mercury_parts:
             status = AVAILABLE
         else:
             status = NOT_AVAILABLE
-        rows.append({'item_number': item, 'revision': rev, 'project': project, 'combined': combined, 'status': status})
+        rows.append({'item_number': item, 'revision': rev, 'project': project, 'description': description,
+                     'combined': combined, 'status': status})
     return rows
 
 
@@ -117,9 +121,9 @@ def rows_to_xlsx(rows, change=None):
         ws['A1'].font = Font(bold=True, size=14)
         ws.append([])
         header_row = 3
-    ws.append(['Item Number', 'Revision', 'Combined', 'Project Name', 'Status'])
+    ws.append(['Item Number', 'Revision', 'Combined', 'Project Name', 'Description', 'Status'])
     for r in rows:
-        ws.append([r['item_number'], r['revision'], r['combined'], r['project'], r['status']])
+        ws.append([r['item_number'], r['revision'], r['combined'], r['project'], r.get('description', ''), r['status']])
 
     header_fill = PatternFill('solid', fgColor='5850EC')
     for cell in ws[header_row]:
@@ -129,13 +133,13 @@ def rows_to_xlsx(rows, change=None):
     status_fills = {AVAILABLE: PatternFill('solid', fgColor='E9F7EE'),
                     NOT_AVAILABLE: PatternFill('solid', fgColor='FDEDED'),
                     NO_NEED: PatternFill('solid', fgColor='F0F2F5')}
-    for row in ws.iter_rows(min_row=header_row + 1, min_col=5, max_col=5):
+    for row in ws.iter_rows(min_row=header_row + 1, min_col=6, max_col=6):
         row[0].fill = status_fills[row[0].value]
         row[0].alignment = Alignment(horizontal='center')
-    for i, width in enumerate([22, 12, 26, 24, 28], start=1):
+    for i, width in enumerate([22, 12, 26, 24, 48, 28], start=1):
         ws.column_dimensions[get_column_letter(i)].width = width
     ws.freeze_panes = f'A{header_row + 1}'
-    ws.auto_filter.ref = f'A{header_row}:E{ws.max_row}'
+    ws.auto_filter.ref = f'A{header_row}:F{ws.max_row}'
 
     buf = io.BytesIO()
     wb.save(buf)

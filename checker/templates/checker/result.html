@@ -41,7 +41,7 @@
   </div>
   <div class="table-scroll">
     <table>
-      <thead><tr><th>#</th><th>Item Number</th><th>Revision</th><th>Project</th><th>Combined</th><th>Status</th></tr></thead>
+      <thead><tr><th>#</th><th>Item Number</th><th>Revision</th><th>Project</th><th>Description</th><th>Combined</th><th>Status</th></tr></thead>
       <tbody id="rows">
         {% for r in rows %}
         {% if r.status == AVAILABLE %}{% firstof 'yes' as key %}{% elif r.status == NOT_AVAILABLE %}{% firstof 'no' as key %}{% else %}{% firstof 'skip' as key %}{% endif %}
@@ -50,6 +50,7 @@
           <td class="mono">{{ r.item_number }}</td>
           <td class="mono">{{ r.revision|default:"—" }}</td>
           <td>{{ r.project|default:"—" }}</td>
+          <td>{{ r.description|default:"—" }}</td>
           <td class="mono">{{ r.combined }}</td>
           <td><span class="pill {% if key == 'yes' %}good{% elif key == 'no' %}bad{% endif %}">{{ r.status }}</span></td>
         </tr>
