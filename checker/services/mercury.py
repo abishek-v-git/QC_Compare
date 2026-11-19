@@ -77,7 +77,9 @@ def read_dev_export(file):
     def cell(row, col):
         return _clean(row[col]) if col is not None and col < len(row) else ''
 
-    return [(cell(row, item_col), cell(row, rev_col), cell(row, project_col), cell(row, description_col))
+    # Revisions sometimes carry a '^' marker (e.g. '^G0'); drop it so the combined part number matches Mercury.
+    return [(cell(row, item_col), cell(row, rev_col).replace('^', '').strip(),
+             cell(row, project_col), cell(row, description_col))
             for row in rows if cell(row, item_col)]
 
 
